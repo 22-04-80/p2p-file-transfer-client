@@ -8,7 +8,7 @@ import {GetUuidRes} from "./channel/events/GetUuidRes";
 import {HandshakeAcceptedPayload} from "./channel/events/HandshakeAcceptedPayload";
 import {HandshakeNoTargetPayload} from "./channel/events/HandshakeNoTargetPayload";
 import {HandshakePayload} from "./channel/events/HandshakePayload";
-import {RemoteMessaging} from "./components/RemoteMessaging";
+import {SingleFileTransfer} from "./components/SingleFileTransfer";
 
 function App() {
 	const {channel} = useContext(ChannelContext);
@@ -31,7 +31,7 @@ function App() {
 		channel?.on(ChannelEvent.getUuid, (payload:GetUuidRes) => {
 			setUuid(payload.uuid);
 			setPeerUuid('');
-			QRCode.toCanvas(canvasRef.current, payload.uuid, (error) => {console.log("canvas", error);});
+			QRCode.toCanvas(canvasRef.current, payload.uuid, (error) => {if (error) console.log("canvas", error);});
 		});
 
 		channel?.on(ChannelEvent.handshake, (payload:HandshakePayload) => {
@@ -84,12 +84,8 @@ function App() {
 						<span>Peer uuid</span> <span>{peerUuid}</span>
 					</div>
 				)}
-				{/*{uuid && peerUuid && (*/}
-				{/*	<Transfer channel={channel}/>*/}
-				{/*)}*/}
-				{/*<LocalMessaging/>*/}
 				{uuid && peerUuid && channel && (
-					<RemoteMessaging channel={channel} uuid={uuid} peerUuid={peerUuid} />
+					<SingleFileTransfer channel={channel} uuid={uuid} peerUuid={peerUuid} />
 				)}
 				{peerReachedError && (
 					<div>Couldn't reach {peerReachedError?.target}</div>

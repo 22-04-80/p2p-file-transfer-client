@@ -1,8 +1,9 @@
 import {Channel, Socket} from "phoenix";
 
+const URL = process.env.REACT_APP_WS_URL;
+
 export function initChannel(): Channel {
-	// const socket = new Socket("wss://limitless-taiga-39396.herokuapp.com/socket");
-	const socket = new Socket("ws://localhost:4000/socket");
+	const socket = new Socket(URL as string);
 	socket.connect();
 	return socket.channel("signal:relay", {});
 }

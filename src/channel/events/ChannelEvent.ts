@@ -8,4 +8,5 @@ export enum ChannelEvent {
 	transferOffer = 'transfer_offer',
 	transferAnswer = 'transfer_answer',
 	transferCancel = 'transfer_cancel',
+	transferFileMetadata = 'transfer_file_metadata',
 }
