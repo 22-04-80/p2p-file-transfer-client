@@ -1,7 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import './index.css';
+import CssBaseline from '@material-ui/core/CssBaseline';
 import App from './App';
+import './App.css';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import reportWebVitals from './reportWebVitals';
 import {ChannelContext} from "./channel/ChannelContext";
@@ -12,7 +13,10 @@ const channel = initChannel();
 ReactDOM.render(
   <React.StrictMode>
       <ChannelContext.Provider value={{channel}}>
-          <App />
+		  <CssBaseline />
+		  <div className="App">
+			  <App />
+		  </div>
       </ChannelContext.Provider>
   </React.StrictMode>,
   document.getElementById('root')

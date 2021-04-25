@@ -1,0 +1,46 @@
+.ShareOptions {
+	padding: 32px;
+	display: flex;
+	flex-direction: column;
+}
+
+.ShareOptions .share-header {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.ShareOptions .share-header .option {
+	cursor: pointer;
+}
+
+.ShareOptions .share-content {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	flex: 1;
+	padding: 32px;
+}
+
+.ShareOptions .share-content .notification {
+	position: fixed;
+	bottom: 8px;
+	padding: 16px;
+	min-width: 200px;
+	box-shadow: 1px 1px 4px 0 rgba(0, 0, 0, 0.2);
+	border-radius: 4px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.ShareOptions .share-content .notification.success {
+	background-color: #4caf50;
+	color: #ffffff;
+}
+
+.ShareOptions .share-content .notification.error {
+	background-color: #f44336;
+	color: #ffffff;
+}
