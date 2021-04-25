@@ -4,10 +4,16 @@ import './index.css';
 import App from './App';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import reportWebVitals from './reportWebVitals';
+import {ChannelContext} from "./channel/ChannelContext";
+import {initChannel} from "./channel/initChannel";
+
+const channel = initChannel();
 
 ReactDOM.render(
   <React.StrictMode>
-    <App />
+      <ChannelContext.Provider value={{channel}}>
+          <App />
+      </ChannelContext.Provider>
   </React.StrictMode>,
   document.getElementById('root')
 );
