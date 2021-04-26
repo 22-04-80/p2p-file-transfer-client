@@ -1,25 +1,25 @@
+import CssBaseline from '@material-ui/core/CssBaseline';
 import React from 'react';
 import ReactDOM from 'react-dom';
-import CssBaseline from '@material-ui/core/CssBaseline';
 import App from './App';
 import './App.css';
-import * as serviceWorkerRegistration from './serviceWorkerRegistration';
-import reportWebVitals from './reportWebVitals';
 import {ChannelContext} from "./channel/ChannelContext";
 import {initChannel} from "./channel/initChannel";
+import reportWebVitals from './reportWebVitals';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 
 const channel = initChannel();
 
 ReactDOM.render(
-  <React.StrictMode>
-      <ChannelContext.Provider value={{channel}}>
-		  <CssBaseline />
-		  <div className="App">
-			  <App />
-		  </div>
-      </ChannelContext.Provider>
-  </React.StrictMode>,
-  document.getElementById('root')
+	<React.StrictMode>
+		<ChannelContext.Provider value={{channel}}>
+			<CssBaseline/>
+			<div className="App">
+				<App/>
+			</div>
+		</ChannelContext.Provider>
+	</React.StrictMode>,
+	document.getElementById('root'),
 );
 
 // If you want your app to work offline and load faster, you can change

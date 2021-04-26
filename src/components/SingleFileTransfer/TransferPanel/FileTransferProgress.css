@@ -1,0 +1,37 @@
+.FileTransferProgress {
+	display: flex;
+	align-items: center;
+}
+
+.FileTransferProgress .file-progress-content {
+	margin: 4px;
+	position: relative;
+	display: flex;
+	padding: 16px;
+	justify-content: center;
+	align-items: center;
+	box-shadow: 1px 1px 4px 0 rgba(0, 0, 0, 0.2);
+	border-radius: 4px;
+}
+
+.FileTransferProgress .file-progress-info {
+	margin-left: 16px;
+}
+
+.FileTransferProgress .file-progress-info .file-name {
+	font-weight: bold;
+}
+
+.FileTransferProgress .file-progress-info .file-size {}
+
+.FileTransferProgress .fab-progress {
+	position: absolute;
+	top: -6px;
+	left: -6px;
+	z-index: 1;
+}
+
+.FileTransferProgress a {
+	text-decoration: none;
+	color: inherit;
+}

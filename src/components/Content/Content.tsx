@@ -1,7 +1,7 @@
 import {Channel} from "phoenix";
 import React from 'react';
 import './Content.css';
-import {SingleFileTransfer} from "../SingleFileTransfer";
+import {SingleFileTransfer} from "../SingleFileTransfer/SingleFileTransfer";
 
 interface Props {
 	uuid: string,

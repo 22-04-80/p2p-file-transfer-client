@@ -32,8 +32,6 @@ export const ShareOptions = (props:Props) => {
 		setLinkCopied(true);
 	};
 
-	// const notificationClassName = `notification`
-
 	return (
 		<div className="ShareOptions">
 			<div className="share-header">
@@ -45,6 +43,7 @@ export const ShareOptions = (props:Props) => {
 				</span>
 				<Switch
 					checked={useQRCode}
+					color="primary"
 					onChange={() => setUseQRCode(!useQRCode)}
 				/>
 				<span
@@ -69,7 +68,7 @@ export const ShareOptions = (props:Props) => {
 						) : (
 							<Fab
 								variant="extended"
-								color="secondary"
+								color="primary"
 								onClick={copyLinkToClipboard}
 							>
 								<FileCopy />

@@ -1,6 +1,8 @@
 import {Channel} from "phoenix";
-import React, {FormEvent} from 'react';
-import {ChannelEvent} from "../channel/events/ChannelEvent";
+import React from 'react';
+import {ChannelEvent} from "../../channel/events/ChannelEvent";
+import {TransferPanel} from "./TransferPanel/TransferPanel";
+import {TransferredFile} from "./TransferredFile";
 
 interface Props {
 	channel: Channel;
@@ -13,16 +15,17 @@ interface State {
 	connectionEstablished: boolean;
 	isSendChannelOpen: boolean;
 
-	receiveProgress: number,
-	receivedBuffer: any[],
-	fileMetaData: any,
-	receivedFile: Blob | null,
+	sendingInProgress: boolean,
+	receivingInProgress: boolean,
+	nextSendFileIndex: number,
+	nextReceiveFileIndex: number,
+	sentFiles: TransferredFile[],
+	receivedFiles: TransferredFile[],
 
 	sendProgress: number,
 }
 
 export class SingleFileTransfer extends React.Component<Props, State> {
-	private fileInputRef = React.createRef<HTMLInputElement>();
 	private peerConnection: RTCPeerConnection | null = null;
 	private dataChannel: RTCDataChannel | null = null;
 	private chunkSize = 16384;
@@ -35,10 +38,12 @@ export class SingleFileTransfer extends React.Component<Props, State> {
 			connectionEstablished: false,
 			isSendChannelOpen: false,
 
-			receiveProgress: 0,
-			receivedBuffer: [],
-			fileMetaData: {},
-			receivedFile: null,
+			sendingInProgress: false,
+			receivingInProgress: false,
+			nextSendFileIndex: 0,
+			nextReceiveFileIndex: 0,
+			sentFiles: [],
+			receivedFiles: [],
 
 			sendProgress: 0,
 		};
@@ -58,6 +63,9 @@ export class SingleFileTransfer extends React.Component<Props, State> {
 		this.handlePeerConnectionIceEvent = this.handlePeerConnectionIceEvent.bind(this);
 		this.disconnectPeers = this.disconnectPeers.bind(this);
 		this.closeConnection = this.closeConnection.bind(this);
+
+		this.setAllFilesAsSeen = this.setAllFilesAsSeen.bind(this);
+		this.setFileNotPristine = this.setFileNotPristine.bind(this);
 	}
 
 	public componentDidMount() {
@@ -115,11 +123,17 @@ export class SingleFileTransfer extends React.Component<Props, State> {
 		});
 
 		channel.on(ChannelEvent.transferFileMetadata, (payload) => {
+			const fileToReceive: TransferredFile = {
+				name: payload.file.name,
+				size: payload.file.size,
+				seen: false,
+				pristine: false,
+				progress: 0,
+				buffer: [],
+			};
+			const newReceivedFiles = [...this.state.receivedFiles, fileToReceive];
 			this.setState({
-				fileMetaData: payload.file,
-				receiveProgress: 0,
-				receivedBuffer: [],
-				receivedFile: null,
+				receivedFiles: newReceivedFiles,
 			});
 		});
 
@@ -128,19 +142,26 @@ export class SingleFileTransfer extends React.Component<Props, State> {
 		});
 	}
 
-	private async initSendingFile(event: FormEvent) {
-		event.preventDefault();
-
+	private async initSendingFile(file: File) {
 		const {channel, uuid, peerUuid} = this.props;
-		const files = this.fileInputRef?.current?.files;
-		const fileChosen = files ? !!files[0] : false;
 
-		if (!fileChosen) {
-			console.log('no file');
+		if (!file || file.size === 0) {
+			console.log('no file or empty file');
 			return;
 		}
 
-		const file = (files as FileList)[0];
+		const fileToSend: TransferredFile = {
+			name: file.name,
+			size: file.size,
+			seen: false,
+			pristine: false,
+			progress: 0,
+			data: file,
+		}
+		const newSentFiles = [...this.state.sentFiles, fileToSend];
+		this.setState({
+			sentFiles: newSentFiles,
+		});
 		channel.push(ChannelEvent.transferFileMetadata, {
 			offerer: uuid,
 			answerer: peerUuid,
@@ -190,6 +211,7 @@ export class SingleFileTransfer extends React.Component<Props, State> {
 					isSendChannelOpen: true,
 					connectionEstablished: true,
 					establishingConnection: false,
+					sendingInProgress: true,
 				});
 				this.sendFile();
 			} else {
@@ -203,19 +225,15 @@ export class SingleFileTransfer extends React.Component<Props, State> {
 	}
 
 	private sendFile() {
-		const files = this.fileInputRef?.current?.files;
-		const file = (files as FileList)[0];
-		console.log(`SENDING FILE ${[file.name, file.size, file.type, file.lastModified].join(' ')}`);
-
-		if (file.size === 0) {
-			console.error('empty file');
+		const {sentFiles, nextSendFileIndex} = this.state;
+		const transferredFile = sentFiles[nextSendFileIndex]
+		const file = transferredFile.data as File;
+		if (!file) {
 			this.closeConnection();
 			return;
 		}
+		console.log(`SENDING FILE ${[file.name, file.size, file.type, file.lastModified].join(' ')}`);
 
-		this.setState({
-			sendProgress: 0,
-		});
 		const fileReader = new FileReader();
 		let offset = 0;
 
@@ -225,11 +243,21 @@ export class SingleFileTransfer extends React.Component<Props, State> {
 			console.log('FileRead.onload ', e);
 			this.dataChannel?.send((e?.target?.result as ArrayBuffer));
 			offset += (e?.target?.result as ArrayBuffer).byteLength;
+			transferredFile.progress = offset;
+			if (offset === file.size) {
+				transferredFile.seen = false;
+				transferredFile.pristine = true;
+			}
 			this.setState({
-				sendProgress: offset,
+				sentFiles: [...this.state.sentFiles],
 			});
 			if (offset < file.size) {
 				readSlice(offset);
+			} else {
+				this.setState({
+					sendingInProgress: false,
+					nextSendFileIndex: this.state.nextSendFileIndex + 1,
+				})
 			}
 		});
 
@@ -309,6 +337,7 @@ export class SingleFileTransfer extends React.Component<Props, State> {
 					isSendChannelOpen: true,
 					connectionEstablished: true,
 					establishingConnection: false,
+					receivingInProgress: true,
 				})
 			} else {
 				this.setState({
@@ -324,31 +353,38 @@ export class SingleFileTransfer extends React.Component<Props, State> {
 		try {
 			const receivedData = await event.data.arrayBuffer();
 			console.log(`Received Message ${receivedData}`);
-			const {fileMetaData, receiveProgress, receivedBuffer} = this.state;
+			const {receivedFiles, nextReceiveFileIndex} = this.state;
+			const transferredFile = receivedFiles[nextReceiveFileIndex];
 
-			if (!fileMetaData) {
+			if (!transferredFile.name && !transferredFile.size) {
 				console.error(`Received file data before file metadata`);
 				return;
 			}
 
-			const updatedReceivedBuffer = [...receivedBuffer];
+			const updatedReceivedBuffer = [...(transferredFile.buffer as any[])];
 			updatedReceivedBuffer.push(receivedData);
-			const updatedReceivedSize = receiveProgress + receivedData.byteLength;
+			const updatedReceivedSize = transferredFile.progress + receivedData.byteLength;
 
 
-			if (updatedReceivedSize === fileMetaData.size) {
+			if (updatedReceivedSize === transferredFile.size) {
 				const receivedFile = new Blob(updatedReceivedBuffer);
+				transferredFile.progress = updatedReceivedSize;
+				transferredFile.seen = false;
+				transferredFile.pristine = true;
+				transferredFile.buffer = undefined;
+				transferredFile.data = receivedFile;
 
 				this.setState({
-					receivedBuffer: [],
-					receiveProgress: updatedReceivedSize,
-					receivedFile,
+					receivedFiles: [...receivedFiles],
+					nextReceiveFileIndex: this.state.nextReceiveFileIndex + 1,
 				});
 				this.closeConnection();
 			} else {
+				transferredFile.progress = updatedReceivedSize;
+				transferredFile.buffer = updatedReceivedBuffer;
+
 				this.setState({
-					receivedBuffer: updatedReceivedBuffer,
-					receiveProgress: updatedReceivedSize,
+					receivedFiles: [...receivedFiles],
 				});
 			}
 		} catch (error) {
@@ -379,49 +415,59 @@ export class SingleFileTransfer extends React.Component<Props, State> {
 			isSendChannelOpen: false,
 			connectionEstablished: false,
 			establishingConnection: false,
+
+			sendingInProgress: false,
+			receivingInProgress: false,
 		})
-		// this.setState({message: ''});
 	}
 
 	private reportError(error: Error) {
 		console.error(error);
 	}
 
+	private setAllFilesAsSeen(fileType: 'sent' | 'received') {
+		if (fileType === 'sent') {
+			this.setState((prevState) => ({
+				sentFiles: prevState.sentFiles.map((file) => ({...file, seen: true}))
+			}));
+		}
+		if (fileType === 'received') {
+			this.setState((prevState) => ({
+				receivedFiles: prevState.receivedFiles.map((file) => ({...file, seen: true}))
+			}));
+		}
+	}
+
+	private setFileNotPristine(fileType: 'sent' | 'received', fileIndex: number) {
+		if (fileType === 'sent') {
+			this.setState((prevState) => {
+				const newSentFiles = [...prevState.sentFiles];
+				newSentFiles[fileIndex].pristine = false;
+				return {sentFiles: newSentFiles};
+			});
+		}
+		if (fileType === 'received') {
+			this.setState((prevState) => {
+				const newReceivedFiles = [...prevState.receivedFiles];
+				newReceivedFiles[fileIndex].pristine = false;
+				return {receivedFiles: newReceivedFiles};
+			});
+		}
+	}
+
 	render() {
-		const {fileMetaData, receivedFile, sendProgress, receiveProgress} = this.state;
+		const {receivedFiles, sentFiles, receivingInProgress, sendingInProgress} = this.state;
 
 		return (
-			<div>
-				<form onSubmit={this.initSendingFile}>
-					<input type="file" ref={this.fileInputRef}/>
-					<button type="submit">Send</button>
-				</form>
-				{Object.keys(fileMetaData).length > 0 && (
-					JSON.stringify(fileMetaData)
-				)}
-				{!!sendProgress && (
-					<div>
-						<label htmlFor="send-progress">Send progress:</label>
-						<progress id="send-progress" max={fileMetaData.size} value={sendProgress}>{sendProgress}%</progress>
-					</div>
-				)}
-				{!!receiveProgress && (
-					<div>
-						<label htmlFor="receive-progress">Receive progress:</label>
-						<progress id="receive-progress" max={fileMetaData.size} value={receiveProgress}>{receiveProgress}%</progress>
-					</div>
-				)}
-				{!!receivedFile && (
-					<div>
-						<a
-							href={URL.createObjectURL(receivedFile)}
-							download={fileMetaData.name}
-						>
-							RECEIVED FILE
-						</a>
-					</div>
-				)}
-			</div>
+			<TransferPanel
+				receivingInProgress={receivingInProgress}
+				sendingInProgress={sendingInProgress}
+				receivedFiles={receivedFiles}
+				sentFiles={sentFiles}
+				onFileSelected={this.initSendingFile}
+				setAllFilesAsSeen={this.setAllFilesAsSeen}
+				setFileNotPristine={this.setFileNotPristine}
+			/>
 		);
 	}
 }
